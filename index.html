@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planet Sim</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="view-space"></canvas>
+    <canvas id="orbittracker"></canvas>
+    <div id="MUSKMENU">
+        <button class="muskbutton" data-type="JMPF" id="mbuttonF">Musk jump 1</button>
+        <button class="muskbutton" data-type="JMPB" id="mbuttonB">Musk jump 2</button>
+    </div>
+
+    <div id="addmenu">
+        <button class="button" data-type="Planet">Planet</button>
+        <button class="button" data-type="Star">Star</button>
+        <button class="button" data-type="Blackhole">Blackhole</button>
+        <button class="button" data-type="Asteroid">Asteroid</button>
+        <button class="button" data-type="Randoms">Big bang</button>
+    </div>
+
+    <div id="locUI">
+        <h2 class="location" id="locx">abc</h2>
+        <h2 class="location" id="locy">def</h2>
+        <h2 class="location" id="locz">ghi</h2>
+    </div>
+
+    <div id="stats-panel"></div>
+
+    <script src="main.js"></script>
+</body>
+</html>
