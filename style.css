@@ -102,6 +102,14 @@ h2 {
     font-weight: bold;
 }
 
+#precision {
+    color: rgb(9, 255, 0);
+    background-color: transparent;
+    border: transparent;
+    width: min-content;
+    height: fit-content;
+}
+
 #locUI {
     position: absolute;
     right: 1.5rem;

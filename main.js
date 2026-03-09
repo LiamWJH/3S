@@ -525,6 +525,16 @@ function updateCurrentcoord() {
     locz.textContent = `Z: ${Math.round(camera.z)}`;
 }
 
+function updatePrecision() {
+    const input = document.getElementById("precision");
+
+    if (!input.value.includes("precision: ")) {
+        input.value = "precision: " + input.value;
+    }
+
+    return Number(input.value.replace("precision: ", ""));
+}
+
 document.querySelectorAll(".button").forEach((button) => {
     button.addEventListener("click", () => {
         if (button.dataset.type !== "Randoms") {
@@ -546,11 +556,11 @@ document.querySelectorAll(".muskbutton").forEach((button) => {
 
 let lastTime = performance.now();
 
+let substeps = 5;
 function render(now) {
-    const dt = Math.min((now - lastTime) / 16.6667, 2);
+    const dt = Math.min((now - lastTime) / 16.6767, 2);
     lastTime = now;
 
-    const substeps = 10;
     const step = dt / substeps;
 
     for (let i = 0; i < substeps; i++) {
@@ -558,12 +568,13 @@ function render(now) {
         updatePhysics(step);
         handleCollisions();
         updateCurrentcoord();
+        substeps = updatePrecision();
     }
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx2.clearRect(0, 0, orbittracker.width, orbittracker.height);
 
-    drawBackgroundStars();
+    //drawBackgroundStars();
 
     const sorted = [...bodies].sort((a, b) => b.z - a.z);
 
@@ -578,4 +589,5 @@ function render(now) {
     requestAnimationFrame(render);
 }
 
+document.getElementById("precision").value = "5";
 requestAnimationFrame(render);
