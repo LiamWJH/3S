@@ -63,6 +63,7 @@ class Body {
         this.y = y;
         this.z = z;
         this.mass = mass;
+        this.targetMass = mass;
         this.type = type;
 
         this.vx = vx;
@@ -76,10 +77,7 @@ class Body {
         this.trail = [];
         this.trailTimer = 0;
 
-        this.possible_colors = ["red", "orange", "yellow", "green", "blue", "purple"];
-        this.orbit_color = this.possible_colors[
-            Math.floor(Math.random() * this.possible_colors.length)
-        ];
+        this.colors = ["red", "orange", "yellow", "green", "blue", "purple"];
     }
 
     resetAcceleration() {
@@ -140,12 +138,13 @@ class Body {
         bigger.vy = (bigger.vy * bigger.mass + smaller.vy * smaller.mass) / totalMass;
         bigger.vz = (bigger.vz * bigger.mass + smaller.vz * smaller.mass) / totalMass;
 
-        bigger.mass = totalMass;
+        bigger.targetMass += smaller.mass;
 
         return smaller;
     }
 
     update(dt) {
+        this.mass += (this.targetMass - this.mass) * 0.001;
         this.vx += this.ax * dt;
         this.vy += this.ay * dt;
         this.vz += this.az * dt;
@@ -168,7 +167,7 @@ class Body {
                 this.trailTimer = 0;
             }
 
-        }
+    }
 
     drawTrail() {
         if (this.trail.length < 2) return;
@@ -179,6 +178,10 @@ class Body {
         for (const point of this.trail) {
             const p = projectPoint(point.x, point.y, point.z);
             if (!p) continue;
+            if (p.x < -50 || p.x > canvas.width + 50 || p.y < -50 || p.y > canvas.height + 50) {
+                continue;
+            }
+
 
             if (!started) {
                 ctx2.moveTo(p.x, p.y);
@@ -190,7 +193,14 @@ class Body {
 
         if (!started) return;
 
-        ctx2.strokeStyle = this.orbit_color;
+        switch (this.type) {
+            case "Planet": ctx2.strokeStyle = "blue"; break;
+            case "Star": ctx2.strokeStyle = "yellow"; break;
+            case "Blackhole": ctx2.strokeStyle = "red"; break;
+            case "Asteroid": ctx2.strokeStyle = "green"; break;
+            case "Gas": return; break;
+        }
+
         ctx2.lineWidth = 1;
         ctx2.stroke();
     }
@@ -200,6 +210,7 @@ class Body {
         if (this.type === "Star") return "gold";
         if (this.type === "Blackhole") return "purple";
         if (this.type === "Asteroid") return "lightgray";
+        if (this.type === "Gas") return "rgba(180, 220, 255, 0.1)";
         return "white";
     }
 
@@ -208,6 +219,7 @@ class Body {
         if (this.type === "Star") return Math.max(8, Math.cbrt(this.mass) * 1.2);
         if (this.type === "Blackhole") return Math.max(6, Math.cbrt(this.mass));
         if (this.type === "Asteroid") return Math.max(2, Math.cbrt(this.mass) * 0.5);
+        if (this.type === "Gas") return Math.cbrt(this.mass);
         return 5;
     }
 
@@ -220,6 +232,19 @@ class Body {
         if (!p) return;
 
         const r = Math.max(1, this.radius() * p.scale);
+
+        if (r <= 0.05) {
+            return;
+        }
+
+        if (
+            p.x + r < 0 ||
+            p.x - r > canvas.width ||
+            p.y + r < 0 ||
+            p.y - r > canvas.height
+        ) {
+            return;
+        }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
@@ -262,38 +287,75 @@ class CoordMenu {
             activeMenu.el.remove();
         }
 
-        this.el = document.createElement("div");
-        this.el.className = "coord";
+        if (this.type !== "Gas") {
+            this.el = document.createElement("div");
+            this.el.className = "coord";
 
-        const title = document.createElement("div");
-        title.textContent = `Create ${this.type}`;
-        this.el.appendChild(title);
+            const title = document.createElement("div");
+            title.textContent = `Create ${this.type}`;
+            this.el.appendChild(title);
 
-        this.inputs.x = this.makeInput("X", menu_cache.x);
-        this.inputs.y = this.makeInput("Y", menu_cache.y);
-        this.inputs.z = this.makeInput("Z", menu_cache.z);
-        this.inputs.mass = this.makeInput("Mass", menu_cache.mass);
-        this.inputs.vx = this.makeInput("Velocity X", menu_cache.vx);
-        this.inputs.vy = this.makeInput("Velocity Y", menu_cache.vy);
-        this.inputs.vz = this.makeInput("Velocity Z", menu_cache.vz);
+            this.inputs.x = this.makeInput("X", menu_cache.x);
+            this.inputs.y = this.makeInput("Y", menu_cache.y);
+            this.inputs.z = this.makeInput("Z", menu_cache.z);
+            this.inputs.mass = this.makeInput("Mass", menu_cache.mass);
+            this.inputs.vx = this.makeInput("Velocity X", menu_cache.vx);
+            this.inputs.vy = this.makeInput("Velocity Y", menu_cache.vy);
+            this.inputs.vz = this.makeInput("Velocity Z", menu_cache.vz);
+            this.inputs.radius = 0;
 
-        const hint = document.createElement("div");
-        hint.className = "hint";
-        hint.textContent = "Press Space to fill X/Y/Z from camera";
-        this.el.appendChild(hint);
 
-        const fillBtn = document.createElement("button");
-        fillBtn.textContent = "Fill From Camera";
-        fillBtn.addEventListener("click", () => this.fillFromCamera());
-        this.el.appendChild(fillBtn);
+            const hint = document.createElement("div");
+            hint.className = "hint";
+            hint.textContent = "Press Space to fill X/Y/Z from camera";
+            this.el.appendChild(hint);
 
-        const finishBtn = document.createElement("button");
-        finishBtn.textContent = "Finish";
-        finishBtn.addEventListener("click", () => this.finish());
-        this.el.appendChild(finishBtn);
+            const fillBtn = document.createElement("button");
+            fillBtn.textContent = "Fill From Camera";
+            fillBtn.addEventListener("click", () => this.fillFromCamera());
+            this.el.appendChild(fillBtn);
 
-        document.body.appendChild(this.el);
-        activeMenu = this;
+            const finishBtn = document.createElement("button");
+            finishBtn.textContent = "Finish";
+            finishBtn.addEventListener("click", () => this.finish());
+            this.el.appendChild(finishBtn);
+
+            document.body.appendChild(this.el);
+            activeMenu = this;
+
+        } else {
+            this.el = document.createElement("div");
+            this.el.className = "coord";
+
+            const title = document.createElement("div");
+            title.textContent = `Create ${this.type} cloud`;
+            this.el.appendChild(title);
+
+            this.inputs.x = this.makeInput("X", menu_cache.x);
+            this.inputs.y = this.makeInput("Y", menu_cache.y);
+            this.inputs.z = this.makeInput("Z", menu_cache.z);
+            this.inputs.mass = this.makeInput("Per particle mass", menu_cache.mass);
+            this.inputs.radius = this.makeInput("Gas radius", menu_cache.radius);
+
+            const hint = document.createElement("div");
+            hint.className = "hint";
+            hint.textContent = "Press Space to fill X/Y/Z from camera";
+            this.el.appendChild(hint);
+
+            const fillBtn = document.createElement("button");
+            fillBtn.textContent = "Fill From Camera";
+            fillBtn.addEventListener("click", () => this.fillFromCamera());
+            this.el.appendChild(fillBtn);
+
+            const finishBtn = document.createElement("button");
+            finishBtn.textContent = "Finish";
+            finishBtn.addEventListener("click", () => this.finish());
+            this.el.appendChild(finishBtn);
+
+            document.body.appendChild(this.el);
+            activeMenu = this;
+
+        }
     }
 
     fillFromCamera() {
@@ -313,15 +375,24 @@ class CoordMenu {
         const y = Number(this.inputs.y.value);
         const z = Number(this.inputs.z.value);
         const mass = Number(this.inputs.mass.value);
-        const vx = Number(this.inputs.vx.value);
-        const vy = Number(this.inputs.vy.value);
-        const vz = Number(this.inputs.vz.value);
+        const radius = Number(this.inputs.radius.value || 0);
+
+        let vx = 0;
+        let vy = 0;
+        let vz = 0;
+
+        if (this.type !== "Gas") {
+            vx = Number(this.inputs.vx.value);
+            vy = Number(this.inputs.vy.value);
+            vz = Number(this.inputs.vz.value);
+        }
 
         if (
             Number.isNaN(x) ||
             Number.isNaN(y) ||
             Number.isNaN(z) ||
             Number.isNaN(mass) ||
+            Number.isNaN(radius) ||
             Number.isNaN(vx) ||
             Number.isNaN(vy) ||
             Number.isNaN(vz)
@@ -334,11 +405,36 @@ class CoordMenu {
         menu_cache.y = this.inputs.y.value;
         menu_cache.z = this.inputs.z.value;
         menu_cache.mass = this.inputs.mass.value;
-        menu_cache.vx = this.inputs.vx.value;
-        menu_cache.vy = this.inputs.vy.value;
-        menu_cache.vz = this.inputs.vz.value;
+        menu_cache.radius = this.inputs.radius?.value || "0";
 
-        bodies.push(new Body(x, y, z, mass, this.type, vx, vy, vz));
+        if (this.type !== "Gas") {
+            menu_cache.vx = this.inputs.vx.value;
+            menu_cache.vy = this.inputs.vy.value;
+            menu_cache.vz = this.inputs.vz.value;
+        }
+
+        if (this.type === "Gas") {
+            for (let i = 0; i < 1000; i++) {
+                const dx = (Math.random() - 0.5) * radius;
+                const dy = (Math.random() - 0.5) * radius;
+                const dz = (Math.random() - 0.5) * radius;
+
+                bodies.push(
+                    new Body(
+                        x + dx,
+                        y + dy,
+                        z + dz,
+                        mass * 0.000001,
+                        "Gas",
+                        0,
+                        0,
+                        0
+                    )
+                );
+            }
+        } else {
+            bodies.push(new Body(x, y, z, mass, this.type, vx, vy, vz));
+        }
 
         this.el.remove();
         this.el = null;
@@ -406,14 +502,38 @@ function updatePhysics(dt) {
     const softening = 100;
 
     for (const body of bodies) {
-        body.resetAcceleration();
+        body.ax = 0;
+        body.ay = 0;
+        body.az = 0;
     }
 
     for (let i = 0; i < bodies.length; i++) {
-        for (let j = 0; j < bodies.length; j++) {
-            if (i !== j) {
-                bodies[i].applyGravity(bodies[j], G, softening);
-            }
+        const a = bodies[i];
+
+        for (let j = i + 1; j < bodies.length; j++) {
+            const b = bodies[j];
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dz = b.z - a.z;
+
+            const distSq = dx * dx + dy * dy + dz * dz + softening;
+            const dist = Math.sqrt(distSq);
+
+            const dirX = dx / dist;
+            const dirY = dy / dist;
+            const dirZ = dz / dist;
+
+            const accelA = (G * b.mass) / distSq;
+            const accelB = (G * a.mass) / distSq;
+
+            a.ax += dirX * accelA;
+            a.ay += dirY * accelA;
+            a.az += dirZ * accelA;
+
+            b.ax -= dirX * accelB;
+            b.ay -= dirY * accelB;
+            b.az -= dirZ * accelB;
         }
     }
 
@@ -486,32 +606,33 @@ function spawnRandomBodies(count = 50) {
     const RANGE = 50000;
     const types = ["Planet", "Star", "Blackhole", "Asteroid"];
 
-    for (let i = 0; i < count; i++) {
+    let spawned = 0;
+
+    while (spawned < count) {
         const x = (Math.random() - 0.5) * RANGE;
         const y = (Math.random() - 0.5) * RANGE;
-        const z = camera.z + 200 + Math.random() * RANGE;
+        const z = camera.z + 200 + RANGE * Math.random();
 
-        const type = types[Math.floor(Math.random() * types.length)];
+        const roll = Math.random() * 100;
+        let type;
+        let mass;
 
-        let mass = 100;
-
-        switch (type) {
-            case "Planet":
-                if (Math.random() * 10 > 60) mass = 50 + Math.random() * 50;
-                break;
-            case "Star":
-                if (Math.random() * 10 > 20)
-                mass = 2000 + Math.random() * 5000;
-                break;
-            case "Blackhole":
-                if (Math.random() * 10 > 99) mass = 1000000 + Math.random() * 20000;
-                break;
-            case "Asteroid":
-                if (Math.random() * 10 > 15) mass = 5 + Math.random() * 5;
-                break;
+        if (roll < 0.1) {
+            type = "Blackhole";
+            mass = 1000000 + Math.random() * 20000;
+        } else if (roll < 10) {
+            type = "Star";
+            mass = 2000 + Math.random() * 5000;
+        } else if (roll < 15) {
+            type = "Planet";
+            mass = 50 + Math.random() * 50;
+        } else {
+            type = "Asteroid";
+            mass = 5 + Math.random() * 5;
         }
 
         bodies.push(new Body(x, y, z, mass, type, 0, 0, 0));
+        spawned += 1;
     }
 }
 
@@ -528,11 +649,7 @@ function updateCurrentcoord() {
 function updatePrecision() {
     const input = document.getElementById("precision");
 
-    if (!input.value.includes("precision: ")) {
-        input.value = "precision: " + input.value;
-    }
-
-    return Number(input.value.replace("precision: ", ""));
+    return Number(input.value);
 }
 
 document.querySelectorAll(".button").forEach((button) => {
